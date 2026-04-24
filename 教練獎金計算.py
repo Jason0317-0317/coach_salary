@@ -1,3 +1,59 @@
+
+
+升級
+
+分享
+Lite
+我明白了！您的需求是將「巨蛋館」與「其他三館」在同一張報表中左右並列顯示，而不是合併計算。兩邊各自擁有獨立的堂數、金額、應付金額、扣款與應付薪資欄位。
+我會先根據您提供的這個並列格式，為「林意潔」教練重新生成一份範例 Excel 報表供您確認。請稍候。
+針對「巨蛋館」需左右並列顯示，已完成範例報表製作，保留原格式並加入館別分離欄位，接下來將修改程式碼自動辨識與處理該格式。
+
+已完成範例生成腳本，確定程式能自動產生左右並列的「三館」與「巨蛋館」格式，接著將進行檔案測試。
+
+Lite
+我已經根據您提供的理想格式，重新製作了「並列式」的報表範例。
+格式說明：
+左側區域 (A-Q 欄)：專門處理「三館」（義昌、高美、中山）的數據，包含三館的總計、稅費扣除與應付薪資。
+右側區域 (R-AB 欄)：專門處理「巨蛋館」的數據，擁有獨立的應付金額、稅費扣除與應付薪資。
+最後一欄 (AC 欄)：顯示教練的「年資」。
+並列呈現：同一個課程類型（如：團 1-2 人）會出現在同一行，方便您一眼對照三館與巨蛋館的授課情況。
+小計與合併：保留了小計行的灰色背景，並將左側與右側的匯總資訊欄位進行了垂直合併，確保視覺整潔。
+請您下載附件查看。如果這個「左右並列、帳務分開」的格式就是您想要的，請告訴我，我將著手修改您的完整程式碼邏輯！
+林意潔_並列格式範例.xlsx
+試算表 · 6.58 KB
+查看此任務中的所有檔案
+這個結果怎麼樣？
+好，給我完整程式碼，但我巨蛋還沒餵數據，所以應該不會有資料
+Lite
+沒問題！我已經準備好完整的程式碼了。
+這份程式碼的核心邏輯已修改為「並列處理」：
+自動辨識館別：系統會根據上傳 Excel 的「統計總表」內容，自動將數據歸類至「三館」或「巨蛋館」。
+帳務獨立計算：三館與巨蛋館的薪資、稅金（10%）、保費（2.11%）會分開計算，互不干涉。
+格式完美並列：輸出的 Excel 會嚴格遵循您要求的並列排版。
+即使您目前還沒有巨蛋館的數據，系統也會自動生成對應的欄位，只是數值會呈現為 0。以下是完整的程式碼：
+已完成並列格式範例，左側為三館數據，右側為巨蛋館，並保留小計與合併，準備進行完整程式碼修改。
+
+Lite
+這是我為您修改完成的完整程式碼。
+程式碼更新重點：
+並列排版架構：程式碼現在會生成兩組平行的欄位，左側處理「義昌、高美、中山」三館，右側處理「巨蛋館」。
+館別自動分流：
+當系統偵測到 Excel 檔案內的館別為「巨蛋館」時，數據會自動填入右側區域。
+其他館別則會彙整到左側的「三館總計」。
+獨立稅費計算：左右兩邊的帳務會分別判斷是否達到 20,000 元的扣款門檻，並各自計算執行業務所得稅（10%）與補充保費（2.11%）。
+自動合併與美化：保留了您要求的排版功能，包含教練名稱與匯總資訊的儲存格合併、小計行背景色設定等。
+您只需將這段程式碼部署到您的 Streamlit 環境中即可使用。如果您在執行上遇到任何問題，或需要進一步微調，請隨時告訴我！
+coach_salary_system_v2.py
+程式碼 · 14.21 KB
+查看此任務中的所有檔案
+任務已完成
+這個結果怎麼樣？
+建議追問
+
+
+
+
+coach_salary_system_v2.py
 import streamlit as st
 import pandas as pd
 import io
@@ -36,7 +92,6 @@ def generate_perfect_salary_report(uploaded_files):
         "高舒涵": {"團1-2人": 550, "團3人": 600, "團4人": 650, "團5人": 700, "團6人": 750, "1對2(1.5hr)": 900, "1對2": 600, "1對1(1.5hr)": 900, "1對1": 600},
         "邱靜瑜": {"團1-2人": 600, "團3人": 650, "團4人": 700, "團5人": 750, "團6人": 800, "1對2(1.5hr)": 975, "1對2": 650, "1對1(1.5hr)": 975, "1對1": 650}
     }
-
     NAME_CONVERSION = {
         "意潔": "林意潔", "Vivi": "陳秀蓉", "怡廷": "陳怡廷", "佳蓁": "鍾佳蓁 Rita", "宛婷": "黃宛婷",
         "小在": "楊子慧(小在)", "LOUIS": "許力尹 LOUIS", "顥顥": "顥顥", "睿絃": "洪睿絃", "儒蓁": "紀儒蓁",
@@ -45,7 +100,6 @@ def generate_perfect_salary_report(uploaded_files):
         "懿庭": "侯懿庭", "俐池": "謝俐池", "姿菁": "黃姿菁", "郁雯": "籃郁雯", "徐漫": "徐漫",
         "筠馨": "鄭筠馨", "舒涵": "高舒涵", "靜瑜": "邱靜瑜"
     }
-    
     SENIORITY_DATA = {
         "林意潔": "兩年以上", "陳秀蓉": "兩年以上", "陳怡廷": "兩年以上", "鍾佳蓁 Rita": "兩年以上",
         "黃宛婷": "一年以上至兩年以下", "楊子慧(小在)": "一年以上至兩年以下", "許力尹 LOUIS": "一年以上至兩年以下",
@@ -59,82 +113,135 @@ def generate_perfect_salary_report(uploaded_files):
     }
     
     course_types = ["團1-2人", "團3人", "團4人", "團5人", "團6人", "1對2(1.5hr)", "1對2", "1對1(1.5hr)", "1對1"]
+    
+    # 定義左右並列的欄位
     columns = [
-        "教練", "課程", "單價", "義昌館堂數", "義昌館金額", "高美館堂數", "高美館金額", "中山館堂數", "中山館金額", "三館總堂數", "三館總金額", "應付金額", "堂數達標獎金(加項)", "總計", "執行業務(扣款)", "補充保費(扣款)", "應付薪資", "年資"
+        "教練_L", "課程_L", "單價_L", "義昌館堂數", "義昌館金額", "高美館堂數", "高美館金額", "中山館堂數", "中山館金額", "三館總堂數", "三館總金額", "應付金額_L", "堂數達標獎金_L", "總計_L", "執行業務_L", "補充保費_L", "應付薪資_L",
+        "教練_R", "課程_R", "單價_R", "巨蛋館堂數", "巨蛋館金額", "應付金額_R", "堂數達標獎金_R", "總計_R", "執行業務_R", "補充保費_R", "應付薪資_R", "年資"
     ]
-
+    
     all_rows = []
     for coach in COACH_PRICING.keys():
         for course in course_types:
             row = {col: 0 for col in columns}
-            row["教練"], row["課程"], row["單價"], row["年資"] = coach, course, COACH_PRICING[coach].get(course, 0), ""
+            # 初始化基本資訊
+            row["教練_L"], row["課程_L"], row["單價_L"] = coach, course, COACH_PRICING[coach].get(course, 0)
+            row["教練_R"], row["課程_R"], row["單價_R"] = coach, course, COACH_PRICING[coach].get(course, 0)
+            row["年資"] = SENIORITY_DATA.get(coach, "")
             all_rows.append(row)
+    
     df_master = pd.DataFrame(all_rows)
-
-    coach_seniority = {}
+    
+    # 讀取上傳檔案並填入數據
     for file in uploaded_files:
         df_info = pd.read_excel(file, sheet_name='統計總表', nrows=1, header=None)
         loc_name = str(df_info.iloc[0, 1]).strip()
         file.seek(0)
         df_stats = pd.read_excel(file, sheet_name='統計總表', skiprows=2).fillna(0)
         
-        s_col, a_col = f"{loc_name}堂數", f"{loc_name}金額"
         for _, s_row in df_stats.iterrows():
             raw_name = str(s_row['姓名']).strip().split(' ')[0]
             mapped_name = NAME_CONVERSION.get(raw_name, raw_name)
-            if '年資' in s_row and s_row['年資'] != 0:
-                coach_seniority[mapped_name] = str(s_row['年資']).strip()
-            mask = (df_master["教練"] == mapped_name)
+            mask = (df_master["教練_L"] == mapped_name)
+            
             for course in course_types:
                 if course in s_row:
                     val = s_row[course]
-                    df_master.loc[mask & (df_master["課程"] == course), s_col] = val
-                    df_master.loc[mask & (df_master["課程"] == course), a_col] = val * COACH_PRICING.get(mapped_name, {}).get(course, 0)
+                    if loc_name == "巨蛋館":
+                        df_master.loc[mask & (df_master["課程_R"] == course), "巨蛋館堂數"] = val
+                        df_master.loc[mask & (df_master["課程_R"] == course), "巨蛋館金額"] = val * COACH_PRICING.get(mapped_name, {}).get(course, 0)
+                    else:
+                        s_col, a_col = f"{loc_name}堂數", f"{loc_name}金額"
+                        if s_col in df_master.columns:
+                            df_master.loc[mask & (df_master["課程_L"] == course), s_col] = val
+                            df_master.loc[mask & (df_master["課程_L"] == course), a_col] = val * COACH_PRICING.get(mapped_name, {}).get(course, 0)
 
+    # 計算匯總與稅費
     final_dfs = []
     for coach in COACH_PRICING.keys():
-        c_df = df_master[df_master["教練"] == coach].copy()
-        seniority_val = SENIORITY_DATA.get(coach, coach_seniority.get(coach, ""))
+        c_df = df_master[df_master["教練_L"] == coach].copy()
+        
+        # 三館計算
         c_df["三館總堂數"] = c_df[["義昌館堂數", "高美館堂數", "中山館堂數"]].sum(axis=1)
         c_df["三館總金額"] = c_df[["義昌館金額", "高美館金額", "中山館金額"]].sum(axis=1)
-        base_pay = c_df["三館總金額"].sum()
-        total_sum = base_pay 
-        tax_10 = int(total_sum * 0.1) if total_sum >= 20000 else 0
-        health_211 = int(total_sum * 0.0211) if total_sum >= 20000 else 0
-        final_pay = total_sum - tax_10 - health_211
-        c_df["年資"] = seniority_val
-        for col, val in zip(["應付金額", "總計", "執行業務(扣款)", "補充保費(扣款)", "應付薪資"], [base_pay, total_sum, tax_10, health_211, final_pay]):
+        total_L = c_df["三館總金額"].sum()
+        tax_L = int(total_L * 0.1) if total_L >= 20000 else 0
+        health_L = int(total_L * 0.0211) if total_L >= 20000 else 0
+        pay_L = total_L - tax_L - health_L
+        
+        # 巨蛋館計算
+        total_R = c_df["巨蛋館金額"].sum()
+        tax_R = int(total_R * 0.1) if total_R >= 20000 else 0
+        health_R = int(total_R * 0.0211) if total_R >= 20000 else 0
+        pay_R = total_R - tax_R - health_R
+        
+        # 填入匯總欄位
+        for col, val in zip(["應付金額_L", "總計_L", "執行業務_L", "補充保費_L", "應付薪資_L"], [total_L, total_L, tax_L, health_L, pay_L]):
             c_df[col] = val
+        for col, val in zip(["應付金額_R", "總計_R", "執行業務_R", "補充保費_R", "應付薪資_R"], [total_R, total_R, tax_R, health_R, pay_R]):
+            c_df[col] = val
+            
         final_dfs.append(c_df)
+        
+        # 加入小計行
         sub_row = {col: 0 for col in columns}
-        sub_row["教練"], sub_row["課程"], sub_row["應付金額"], sub_row["總計"], sub_row["應付薪資"], sub_row["年資"] = coach, "小計", base_pay, total_sum, final_pay, seniority_val
+        sub_row["教練_L"], sub_row["課程_L"], sub_row["應付金額_L"], sub_row["應付薪資_L"] = coach, "小計", total_L, pay_L
+        sub_row["教練_R"], sub_row["課程_R"], sub_row["應付金額_R"], sub_row["應付薪資_R"] = coach, "小計", total_R, pay_R
+        sub_row["年資"] = SENIORITY_DATA.get(coach, "")
         final_dfs.append(pd.DataFrame([sub_row]))
 
     df_final = pd.concat(final_dfs, ignore_index=True)
+    
+    # 輸出 Excel 並排版
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df_final.to_excel(writer, index=False, sheet_name='薪資清單')
-        ws, thin = writer.sheets['薪資清單'], Side(style='thin')
-        border, center = Border(top=thin, left=thin, right=thin, bottom=thin), Alignment(horizontal='center', vertical='center')
+        ws = writer.sheets['薪資清單']
+        
+        # 修正標題顯示
+        display_headers = [
+            "教練", "課程", "單價", "義昌館堂數", "義昌館金額", "高美館堂數", "高美館金額", "中山館堂數", "中山館金額", "三館總堂數", "三館總金額", "應付金額", "堂數達標獎金(加項)", "總計", "執行業務(扣款)", "補充保費(扣款)", "應付薪資",
+            "教練", "課程", "單價", "巨蛋館堂數", "巨蛋館金額", "應付金額", "堂數達標獎金(加項)", "總計", "執行業務(扣款)", "補充保費(扣款)", "應付薪資", "年資"
+        ]
+        for i, h in enumerate(display_headers):
+            ws.cell(row=1, column=i+1).value = h
+            
+        thin = Side(style='thin')
+        border = Border(top=thin, left=thin, right=thin, bottom=thin)
+        center = Alignment(horizontal='center', vertical='center')
+        header_fill = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
+        sub_fill = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
+        
         for cell in ws[1]:
-            cell.fill, cell.font, cell.alignment, cell.border = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid"), Font(bold=True), center, border
-        start_r, pay_idx, senior_idx = 2, df_final.columns.get_loc("應付金額") + 1, df_final.columns.get_loc("年資") + 1
+            cell.fill, cell.font, cell.alignment, cell.border = header_fill, Font(bold=True), center, border
+            
+        start_r = 2
+        merge_cols = [1, 12, 13, 14, 15, 16, 17, 18, 23, 24, 25, 26, 27, 28, 29]
+        
         for r in range(2, ws.max_row + 1):
-            coach_val, next_coach = ws.cell(row=r, column=1).value, ws.cell(row=r + 1, column=1).value if r < ws.max_row else None
+            coach_val = ws.cell(row=r, column=1).value
+            next_coach = ws.cell(row=r + 1, column=1).value if r < ws.max_row else None
+            is_sub = ws.cell(row=r, column=2).value == "小計"
+            
             for c in range(1, ws.max_column + 1):
-                ws.cell(row=r, column=c).border, ws.cell(row=r, column=c).alignment = border, center
-                if ws.cell(row=r, column=2).value == "小計": ws.cell(row=r, column=c).fill = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
+                cell = ws.cell(row=r, column=c)
+                cell.border, cell.alignment = border, center
+                if is_sub: cell.fill = sub_fill
+            
             if next_coach != coach_val:
-                ws.merge_cells(start_row=start_r, start_column=1, end_row=r, end_column=1)
-                for c in range(pay_idx, senior_idx + 1):
-                    ws.merge_cells(start_row=start_r, start_column=c, end_row=r, end_column=c)
+                # 執行合併邏輯
+                for c in merge_cols:
+                    ws.merge_cells(start_row=start_r, start_column=c, end_row=r-1, end_column=c)
                 start_r = r + 1
-        for col in ws.columns: ws.column_dimensions[col[0].column_letter].width = 15
+                
+        for col in ws.columns:
+            ws.column_dimensions[col[0].column_letter].width = 12
+            
     return output.getvalue()
 
-st.title("教練薪資結算系統")
+st.title("教練薪資結算系統 (並列版)")
 uploaded_files = st.file_uploader("上傳預約統計表 (.xlsx)", type=["xlsx"], accept_multiple_files=True)
 if uploaded_files:
     if st.button("開始計算薪資並排版"):
         final_excel_data = generate_perfect_salary_report(uploaded_files)
-        st.download_button(label="下載薪資明細表", data=final_excel_data, file_name="教練薪資明細_最終版.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        st.download_button(label="下載薪資明細表", data=final_excel_data, file_name="教練薪資明細_並列最終版.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
