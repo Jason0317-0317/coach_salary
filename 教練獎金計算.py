@@ -5,7 +5,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Side, PatternFill, Font
 
 def generate_perfect_salary_report(uploaded_files):
-    # 教練單價表
+    # 教練單價表 (維持原樣)
     COACH_PRICING = {
         "林意潔": {"團1-2人": 800, "團3人": 900, "團4人": 900, "團5人": 950, "團6人": 1000, "1對2(1.5hr)": 1275, "1對2": 850, "1對1(1.5hr)": 1275, "1對1": 850},
         "陳秀蓉": {"團1-2人": 800, "團3人": 850, "團4人": 850, "團5人": 900, "團6人": 950, "1對2(1.5hr)": 1200, "1對2": 800, "1對1(1.5hr)": 1200, "1對1": 800},
@@ -42,11 +42,11 @@ def generate_perfect_salary_report(uploaded_files):
     
     course_types = ["團1-2人", "團3人", "團4人", "團5人", "團6人", "1對2(1.5hr)", "1對2", "1對1(1.5hr)", "1對1"]
     
-    # 嚴格遵循您要求的排版順序
+    # 嚴格遵循您的排版截圖順序
     columns = [
         "教練", "課程", "單價", 
         "義昌館堂數", "義昌館金額", "高美館堂數", "高美館金額", "中山館堂數", "中山館金額", 
-        "巨蛋館總堂數", "總金額",  # 這裡的「總金額」代表巨蛋館小計
+        "巨蛋館總堂數", "總金額", 
         "三館總堂數", "三館總金額", 
         "應付金額", "堂數達標獎金(加項)", "總計", "執行業務(扣款)", "補充保費(扣款)", "應付薪資", "年資"
     ]
@@ -59,14 +59,13 @@ def generate_perfect_salary_report(uploaded_files):
             all_rows.append(row)
     df_master = pd.DataFrame(all_rows)
 
-    # 讀取資料
+    # 讀取資料邏輯強化
     for file in uploaded_files:
         df_info = pd.read_excel(file, sheet_name='統計總表', nrows=1, header=None)
         loc_name = str(df_info.iloc[0, 1]).strip()
         file.seek(0)
         df_stats = pd.read_excel(file, sheet_name='統計總表', skiprows=2).fillna(0)
         
-        # 判斷欄位名稱
         if "巨蛋" in loc_name:
             s_col, a_col = "巨蛋館總堂數", "總金額"
         else:
@@ -86,11 +85,11 @@ def generate_perfect_salary_report(uploaded_files):
     for coach in COACH_PRICING.keys():
         c_df = df_master[df_master["教練"] == coach].copy()
         
-        # 計算三館總計
+        # 計算三館總計 (排除巨蛋館)
         c_df["三館總堂數"] = c_df[["義昌館堂數", "高美館堂數", "中山館堂數"]].sum(axis=1)
         c_df["三館總金額"] = c_df[["義昌館金額", "高美館金額", "中山館金額"]].sum(axis=1)
         
-        # 應付金額 = (三館總金額) + (巨蛋館總金額)
+        # 應付金額核心邏輯：三館金額 + 巨蛋館金額
         base_pay = c_df["三館總金額"].sum() + c_df["總金額"].sum()
         
         bonus = 0  # 獎金邏輯預留
@@ -104,20 +103,17 @@ def generate_perfect_salary_report(uploaded_files):
             
         final_dfs.append(c_df)
         
-        # 小計列
+        # 小計列計算
         sub_row = {col: 0 for col in columns}
         sub_row["教練"], sub_row["課程"] = coach, "小計"
-        sub_row["義昌館堂數"] = c_df["義昌館堂數"].sum()
-        sub_row["義昌館金額"] = c_df["義昌館金額"].sum()
-        sub_row["高美館堂數"] = c_df["高美館堂數"].sum()
-        sub_row["高美館金額"] = c_df["高美館金額"].sum()
-        sub_row["中山館堂數"] = c_df["中山館堂數"].sum()
-        sub_row["中山館金額"] = c_df["中山館金額"].sum()
+        for館 in ["義昌館", "高美館", "中山館"]:
+            sub_row[f"{館}堂數"] = c_df[f"{館}堂數"].sum()
+            sub_row[f"{館}金額"] = c_df[f"{館}金額"].sum()
         sub_row["巨蛋館總堂數"] = c_df["巨蛋館總堂數"].sum()
         sub_row["總金額"] = c_df["總金額"].sum()
         sub_row["三館總堂數"] = c_df["三館總堂數"].sum()
         sub_row["三館總金額"] = c_df["三館總金額"].sum()
-        sub_row["應付金額"], sub_row["總計"], sub_row["應付薪資"], sub_row["年資"] = base_pay, total_sum, final_pay, SENIORITY_DATA.get(coach, "")
+        sub_row["應付金額"], sub_row["堂數達標獎金(加項)"], sub_row["總計"], sub_row["執行業務(扣款)"], sub_row["補充保費(扣款)"], sub_row["應付薪資"], sub_row["年資"] = base_pay, bonus, total_sum, tax_10, health_211, final_pay, SENIORITY_DATA.get(coach, "")
         final_dfs.append(pd.DataFrame([sub_row]))
 
     df_final = pd.concat(final_dfs, ignore_index=True)
@@ -130,20 +126,24 @@ def generate_perfect_salary_report(uploaded_files):
         for cell in ws[1]:
             cell.fill, cell.font, cell.alignment, cell.border = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid"), Font(bold=True), center, border
             
-        # 合併範圍：應付金額 到 年資
+        # 鎖定合併欄位索引 (應付金額 到 年資)
         pay_idx = df_final.columns.get_loc("應付金額") + 1
         senior_idx = df_final.columns.get_loc("年資") + 1
         
         start_r = 2
         for r in range(2, ws.max_row + 1):
             coach_val, next_coach = ws.cell(row=r, column=1).value, ws.cell(row=r + 1, column=1).value if r < ws.max_row else None
+            is_subtotal = ws.cell(row=r, column=2).value == "小計"
+            
             for c in range(1, ws.max_column + 1):
                 ws.cell(row=r, column=c).border, ws.cell(row=r, column=c).alignment = border, center
-                if ws.cell(row=r, column=2).value == "小計": 
+                if is_subtotal:
                     ws.cell(row=r, column=c).fill = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
             
             if next_coach != coach_val:
+                # 合併左側姓名
                 ws.merge_cells(start_row=start_r, start_column=1, end_row=r, end_column=1)
+                # 合併右側數值 (包含小計列也一起併入的話會與截圖一致)
                 for c in range(pay_idx, senior_idx + 1):
                     ws.merge_cells(start_row=start_r, start_column=c, end_row=r, end_column=c)
                 start_r = r + 1
@@ -153,8 +153,8 @@ def generate_perfect_salary_report(uploaded_files):
     return output.getvalue()
 
 st.title("教練薪資結算系統")
-uploaded_files = st.file_uploader("上傳各館預約統計表 (.xlsx)", type=["xlsx"], accept_multiple_files=True)
+uploaded_files = st.file_uploader("上傳統計表 (.xlsx)", type=["xlsx"], accept_multiple_files=True)
 if uploaded_files:
-    if st.button("執行計算並排版"):
+    if st.button("生成最終排版明細"):
         final_excel_data = generate_perfect_salary_report(uploaded_files)
-        st.download_button(label="📥 下載薪資明細表", data=final_excel_data, file_name="教練薪資明細_最終排版.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        st.download_button(label="📥 下載更新版薪資清單", data=final_excel_data, file_name="薪資明細_巨蛋修正版.xlsx")
