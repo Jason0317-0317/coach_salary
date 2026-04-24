@@ -95,14 +95,12 @@ def generate_perfect_salary_report(uploaded_files):
             for course in display_course_types:
                 val = 0
                 if course == "團1-2人":
-                    # 合併 團1人 與 團2人
                     val = s_row.get("團1人", 0) + s_row.get("團2人", 0)
                 else:
-                    # 直接對應 (例如 "團3人", "1對1" 等)
                     val = s_row.get(course, 0)
                 
                 if val == 0: continue
-                
+                    
                 target_mask = coach_mask & (df_master["課程_L"] == course)
                 unit_price = COACH_PRICING.get(mapped_name, {}).get(course, 0)
                 
