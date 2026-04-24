@@ -37,11 +37,11 @@ def generate_perfect_salary_report(uploaded_files):
         "邱靜瑜": {"團1-2人": 600, "團3人": 650, "團4人": 700, "團5人": 750, "團6人": 800, "1對2(1.5hr)": 975, "1對2": 650, "1對1(1.5hr)": 975, "1對1": 650}
     }
     NAME_CONVERSION = {
-        "意潔": "林意潔", "Vivi": "陳秀蓉", "怡廷": "陳怡廷", "佳蓁": "鍾佳蓁 Rita", "宛婷": "黃宛婷",
-        "小在": "楊子慧(小在)", "LOUIS": "許力尹 LOUIS", "顥顥": "顥顥", "睿絃": "洪睿絃", "儒蓁": "紀儒蓁",
+        "意潔": "林意潔", "Cammy": "陳怡廷", "Vivi": "陳秀蓉", "怡廷": "陳怡廷", "佳蓁": "鍾佳蓁 Rita", "宛婷": "黃宛婷", "WanTing": "黃宛婷",
+        "小在": "楊子慧(小在)", "Jae": "楊子慧(小在)", "LOUIS": "許力尹 LOUIS", "顥顥": "顥顥", "睿絃": "洪睿絃", "儒蓁": "紀儒蓁",
         "翎瑋": "李翎瑋", "奕伶": "郭奕伶", "品均": "郭品均", "妍語": "邴妍語", "鈞弼": "張鈞弼",
-        "竣升": "蕭竣升", "萃萃": "紀萃文", "函豫": "李函豫", "子綺": "尤子綺", "楷翌": "張楷翌",
-        "懿庭": "侯懿庭", "俐池": "謝俐池", "姿菁": "黃姿菁", "郁雯": "籃郁雯", "徐漫": "徐漫",
+        "竣升": "蕭竣升", "萃萃": "紀萃文", "函豫": "李函豫", "Hanny": "李函豫", "子綺": "尤子綺", "Yuli": "尤子綺", "楷翌": "張楷翌", "Eric": "張楷翌",
+        "懿庭": "侯懿庭", "Yvonne Hou": "侯懿庭", "俐池": "謝俐池", "Grace Hsieh": "謝俐池", "姿菁": "黃姿菁", "郁雯": "籃郁雯", "徐漫": "徐漫", "mandy": "徐漫", "漫漫": "徐漫",
         "筠馨": "鄭筠馨", "舒涵": "高舒涵", "靜瑜": "邱靜瑜"
     }
     SENIORITY_DATA = {
@@ -56,7 +56,8 @@ def generate_perfect_salary_report(uploaded_files):
         "鄭筠馨": "一年以下", "高舒涵": "一年以下", "邱靜瑜": "一年以下"
     }
     
-    course_types = ["團1-2人", "團3人", "團4人", "團5人", "團6人", "1對2(1.5hr)", "1對2", "1對1(1.5hr)", "1對1"]
+    # 定義報表顯示的課程類型
+    display_course_types = ["團1-2人", "團3人", "團4人", "團5人", "團6人", "1對2(1.5hr)", "1對2", "1對1(1.5hr)", "1對1"]
     
     # 定義左右並列的欄位
     columns = [
@@ -66,9 +67,8 @@ def generate_perfect_salary_report(uploaded_files):
     
     all_rows = []
     for coach in COACH_PRICING.keys():
-        for course in course_types:
+        for course in display_course_types:
             row = {col: 0 for col in columns}
-            # 初始化基本資訊
             row["教練_L"], row["課程_L"], row["單價_L"] = coach, course, COACH_PRICING[coach].get(course, 0)
             row["教練_R"], row["課程_R"], row["單價_R"] = coach, course, COACH_PRICING[coach].get(course, 0)
             row["年資"] = SENIORITY_DATA.get(coach, "")
@@ -83,38 +83,44 @@ def generate_perfect_salary_report(uploaded_files):
         file.seek(0)
         df_stats = pd.read_excel(file, sheet_name='統計總表', skiprows=2).fillna(0)
         
+        # 取得 Excel 的欄位名稱
+        excel_cols = df_stats.columns.tolist()
+        
         for _, s_row in df_stats.iterrows():
             raw_name = str(s_row['姓名']).strip().split(' ')[0]
             mapped_name = NAME_CONVERSION.get(raw_name, raw_name)
-            
-            # 精確定位教練，避免重複統計
             coach_mask = (df_master["教練_L"] == mapped_name)
             
-            for course in course_types:
-                if course in s_row:
-                    val = s_row[course]
-                    if val == 0: continue
-                    
-                    course_mask = (df_master["課程_L"] == course)
-                    target_mask = coach_mask & course_mask
-                    
-                    if loc_name == "巨蛋館":
-                        # 僅更新右側巨蛋館欄位
-                        df_master.loc[target_mask, "巨蛋館堂數"] = val
-                        df_master.loc[target_mask, "巨蛋館金額"] = val * COACH_PRICING.get(mapped_name, {}).get(course, 0)
-                    else:
-                        # 僅更新左側對應分館欄位
-                        s_col, a_col = f"{loc_name}堂數", f"{loc_name}金額"
-                        if s_col in df_master.columns:
-                            df_master.loc[target_mask, s_col] = val
-                            df_master.loc[target_mask, a_col] = val * COACH_PRICING.get(mapped_name, {}).get(course, 0)
+            # 處理每一種課程類型
+            for course in display_course_types:
+                val = 0
+                if course == "團1-2人":
+                    # 合併 團1人 與 團2人
+                    val = s_row.get("團1人", 0) + s_row.get("團2人", 0)
+                else:
+                    # 直接對應 (例如 "團3人", "1對1" 等)
+                    val = s_row.get(course, 0)
+                
+                if val == 0: continue
+                
+                target_mask = coach_mask & (df_master["課程_L"] == course)
+                unit_price = COACH_PRICING.get(mapped_name, {}).get(course, 0)
+                
+                if loc_name == "巨蛋館":
+                    df_master.loc[target_mask, "巨蛋館堂數"] = val
+                    df_master.loc[target_mask, "巨蛋館金額"] = val * unit_price
+                else:
+                    s_col, a_col = f"{loc_name}堂數", f"{loc_name}金額"
+                    if s_col in df_master.columns:
+                        df_master.loc[target_mask, s_col] = val
+                        df_master.loc[target_mask, a_col] = val * unit_price
 
     # 計算匯總與稅費
     final_dfs = []
     for coach in COACH_PRICING.keys():
         c_df = df_master[df_master["教練_L"] == coach].copy()
         
-        # 三館計算 (左側)
+        # 三館計算
         c_df["三館總堂數"] = c_df[["義昌館堂數", "高美館堂數", "中山館堂數"]].sum(axis=1)
         c_df["三館總金額"] = c_df[["義昌館金額", "高美館金額", "中山館金額"]].sum(axis=1)
         total_L = c_df["三館總金額"].sum()
@@ -122,13 +128,12 @@ def generate_perfect_salary_report(uploaded_files):
         health_L = int(total_L * 0.0211) if total_L >= 20000 else 0
         pay_L = total_L - tax_L - health_L
         
-        # 巨蛋館計算 (右側)
+        # 巨蛋館計算
         total_R = c_df["巨蛋館金額"].sum()
         tax_R = int(total_R * 0.1) if total_R >= 20000 else 0
         health_R = int(total_R * 0.0211) if total_R >= 20000 else 0
         pay_R = total_R - tax_R - health_R
         
-        # 填入匯總欄位
         for col, val in zip(["應付金額_L", "總計_L", "執行業務_L", "補充保費_L", "應付薪資_L"], [total_L, total_L, tax_L, health_L, pay_L]):
             c_df[col] = val
         for col, val in zip(["應付金額_R", "總計_R", "執行業務_R", "補充保費_R", "應付薪資_R"], [total_R, total_R, tax_R, health_R, pay_R]):
@@ -136,7 +141,7 @@ def generate_perfect_salary_report(uploaded_files):
             
         final_dfs.append(c_df)
         
-        # 加入小計行
+        # 小計行
         sub_row = {col: 0 for col in columns}
         sub_row["教練_L"], sub_row["課程_L"], sub_row["應付金額_L"], sub_row["應付薪資_L"] = coach, "小計", total_L, pay_L
         sub_row["教練_R"], sub_row["課程_R"], sub_row["應付金額_R"], sub_row["應付薪資_R"] = coach, "小計", total_R, pay_R
@@ -145,13 +150,11 @@ def generate_perfect_salary_report(uploaded_files):
 
     df_final = pd.concat(final_dfs, ignore_index=True)
     
-    # 輸出 Excel 並排版
+    # 輸出 Excel
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df_final.to_excel(writer, index=False, sheet_name='薪資清單')
         ws = writer.sheets['薪資清單']
-        
-        # 修正標題顯示
         display_headers = [
             "教練", "課程", "單價", "義昌館堂數", "義昌館金額", "高美館堂數", "高美館金額", "中山館堂數", "中山館金額", "三館總堂數", "三館總金額", "應付金額", "堂數達標獎金(加項)", "總計", "執行業務(扣款)", "補充保費(扣款)", "應付薪資",
             "教練", "課程", "單價", "巨蛋館堂數", "巨蛋館金額", "應付金額", "堂數達標獎金(加項)", "總計", "執行業務(扣款)", "補充保費(扣款)", "應付薪資", "年資"
@@ -182,7 +185,6 @@ def generate_perfect_salary_report(uploaded_files):
                 if is_sub: cell.fill = sub_fill
             
             if next_coach != coach_val:
-                # 執行合併邏輯
                 for c in merge_cols:
                     ws.merge_cells(start_row=start_r, start_column=c, end_row=r-1, end_column=c)
                 start_r = r + 1
@@ -192,9 +194,9 @@ def generate_perfect_salary_report(uploaded_files):
             
     return output.getvalue()
 
-st.title("教練薪資結算系統 (並列修正版)")
+st.title("教練薪資結算系統 (並列合併版)")
 uploaded_files = st.file_uploader("上傳預約統計表 (.xlsx)", type=["xlsx"], accept_multiple_files=True)
 if uploaded_files:
     if st.button("開始計算薪資並排版"):
         final_excel_data = generate_perfect_salary_report(uploaded_files)
-        st.download_button(label="下載薪資明細表", data=final_excel_data, file_name="教練薪資明細_並列修正版.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        st.download_button(label="下載薪資明細表", data=final_excel_data, file_name="教練薪資明細_並列合併版.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
